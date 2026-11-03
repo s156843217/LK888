@@ -1,12 +1,11 @@
 const $=s=>document.querySelector(s);
-const initialPrompts=[
-{title:'找出你的個人品牌定位',category:'個人品牌',desc:'從自己的經歷與特色開始，整理適合你的房仲定位。',body:'你是房仲個人品牌教練，請幫我找出適合我的個人IP定位。\n\n請用自然、簡單的方式，一次只問我一個問題，等我回答後再問下一題。若我不知道怎麼回答，請提供幾個例子讓我選擇。\n\n請依序了解：\n1. 我的服務區域、房仲年資與過去工作經驗。\n2. 我最想服務哪一類客戶，以及他們常遇到的問題。\n3. 我擅長處理什麼事情，請引導我分享實際案例。\n4. 客戶或同事通常怎麼形容我。\n5. 我的個性、興趣，以及願意公開分享的生活特色。\n6. 我希望客戶記住我什麼，以及我拍影片時最自在的表達方式。\n\n問完後，請依據我的回答，整理：\n① 一句話個人IP定位：我在＿＿，幫助＿＿，透過＿＿，解決＿＿。\n② 三個個人品牌關鍵字，並說明依據。\n③ 我的目標客群與可以提供的具體價值。\n④ 三個適合長期拍攝的短影音主題。\n⑤ 一段自然、不誇大的自我介紹，約20秒。\n⑥ 三個適合我拍第一支60秒口播影片的題目。\n\n不要替我編造經歷、專長或成交成績。如果資訊不足，請繼續問我。\n\n現在請開始問第一題。'},
-{title:'室內照片・自然提亮',category:'房屋照片',desc:'提高空間明亮度，保留窗外景色與真實攝影質感。使用前請先上傳照片。',body:'提高整體曝光約 1～2 EV，讓室內更加明亮。保留窗外景色，不要過曝。提升自然日光效果，柔化陰影，均勻照亮整個空間。白平衡調整為自然中性色溫（約5000K～5500K），增加地板與牆面的細節，保持真實攝影質感，不要 HDR 過度效果，不改變格局、家具、門窗位置。'},
-{title:'室內照片・清除生活雜物',category:'房屋照片',desc:'清除非固定式雜物，保留建築結構與固定設備。使用前請先上傳照片。',body:'請移除照片中所有非固定式雜物，使空間看起來乾淨整潔。 可移除： 生活用品、紙箱、垃圾袋、塑膠袋、衣物、鞋子、拖鞋、電線、延長線、充電器、清潔用品、瓶罐、玩具、包包、雜誌、文件、小型收納物、雜亂物品。 不得移除： 門窗、牆面、地板、天花板、柱體、樓梯、櫥櫃、流理台、衛浴設備、固定家具、家電、燈具、窗簾、插座及所有建築結構。 移除後請自然補齊背景與材質，保持原有光影、紋理與真實攝影質感，不產生修圖痕跡，不新增任何家具或裝飾品。'},
-{title:'室內照片・調整拍攝角度',category:'房屋照片',desc:'以水平平移方式調整畫面，維持原有空間。使用前請先上傳照片。',body:'保持房屋格局、門窗、牆面、家具完全不變。僅將攝影機向右水平平移，使畫面更加端正。維持原始高度與鏡頭焦段，不改變透視、不新增或移除任何物件。'}];
 function read(key,fallback){try{return JSON.parse(localStorage.getItem(key))||fallback}catch{return fallback}}
 function save(key,data){try{localStorage.setItem(key,JSON.stringify(data))}catch{toast('本機儲存失敗，請確認瀏覽器儲存空間。')}}
-let prompts=read('lk-prompts',initialPrompts),category='全部',editing=false,editIndex=-1;
+let prompts=read('lk-prompts',null),category='全部',editing=false,editIndex=-1;
+if(read('lk-prompt-catalog-version',0)<1){
+  prompts=mergePromptCatalog(prompts,initialPrompts);
+  save('lk-prompts',prompts);save('lk-prompt-catalog-version',1);
+}else if(!Array.isArray(prompts)){prompts=initialPrompts.map(p=>({...p}))}
 function toast(message){$('#toast').textContent=message;$('#toast').style.display='block';clearTimeout(window.toastTimer);window.toastTimer=setTimeout(()=>$('#toast').style.display='none',2500)}
 function route(){let id=location.hash.slice(1);if(!['home','prompts','schedule'].includes(id))id='home';document.querySelectorAll('.page').forEach(p=>p.hidden=p.id!==id);document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('active',a.dataset.page===id));$('#breadcrumb').textContent={home:'工作首頁',prompts:'AI 指令庫',schedule:'值班排表'}[id]}
 window.addEventListener('hashchange',route);route();
