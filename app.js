@@ -1,11 +1,8 @@
 const $=s=>document.querySelector(s);
 function read(key,fallback){try{return JSON.parse(localStorage.getItem(key))||fallback}catch{return fallback}}
 function save(key,data){try{localStorage.setItem(key,JSON.stringify(data))}catch{toast('本機儲存失敗，請確認瀏覽器儲存空間。')}}
-let prompts=read('lk-prompts',null),category='全部',editing=false,editIndex=-1;
-if(read('lk-prompt-catalog-version',0)<1){
-  prompts=mergePromptCatalog(prompts,initialPrompts);
-  save('lk-prompts',prompts);save('lk-prompt-catalog-version',1);
-}else if(!Array.isArray(prompts)){prompts=initialPrompts.map(p=>({...p}))}
+const prompts=initialPrompts.map(p=>({...p}));
+let category='全部';
 function toast(message){$('#toast').textContent=message;$('#toast').style.display='block';clearTimeout(window.toastTimer);window.toastTimer=setTimeout(()=>$('#toast').style.display='none',2500)}
 function route(){let id=location.hash.slice(1);if(!['home','prompts','schedule'].includes(id))id='home';document.querySelectorAll('.page').forEach(p=>p.hidden=p.id!==id);document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('active',a.dataset.page===id));$('#breadcrumb').textContent={home:'工作首頁',prompts:'AI 指令庫',schedule:'值班排表'}[id]}
 window.addEventListener('hashchange',route);route();
@@ -21,10 +18,30 @@ $('#view-calendar').onclick=()=>setScheduleView('calendar');$('#view-traditional
 setScheduleView(read('lk-schedule-view','calendar'));
 function element(tag,text,className){const e=document.createElement(tag);if(text)e.textContent=text;if(className)e.className=className;return e}
 async function copy(text){try{if(navigator.clipboard){await navigator.clipboard.writeText(text)}else{const t=element('textarea');t.value=text;document.body.append(t);t.select();const ok=document.execCommand('copy');t.remove();if(!ok)throw Error()}toast('已複製完整指令')}catch{toast('無法自動複製，請展開指令後選取文字複製。')}}
-function renderPrompts(){const categories=['全部',...new Set(prompts.map(p=>p.category))];if(!categories.includes(category))category='全部';$('#categories').replaceChildren(...categories.map(c=>{const b=element('button',c,c===category?'active':'');b.onclick=()=>{category=c;renderPrompts()};return b}));const q=$('#search').value.trim().toLowerCase();let count=0;$('#prompt-list').replaceChildren();prompts.forEach((p,index)=>{if((category!=='全部'&&p.category!==category)||!`${p.title}${p.desc}${p.body}`.toLowerCase().includes(q))return;count++;const card=element('article',null,'prompt-card');card.append(element('span',p.category,'eyebrow'),element('h3',p.title),element('p',p.desc));const details=element('details');details.append(element('summary','查看完整指令'),element('pre',p.body));card.append(details);const bottom=element('div',null,'card-bottom');bottom.append(element('span','複製後貼到 AI 使用'));const b=element('button','複製指令');b.onclick=()=>copy(p.body);bottom.append(b);if(editing){const edit=element('button','編輯');edit.onclick=()=>openEditor(index);bottom.append(edit);const del=element('button','刪除','secondary');del.onclick=()=>{if(confirm('確定刪除這則本機指令？')){prompts.splice(index,1);save('lk-prompts',prompts);renderPrompts()}};bottom.append(del)}card.append(bottom);$('#prompt-list').append(card)});$('#result-count').textContent=`共 ${count} 則指令`;if(!count)$('#prompt-list').append(element('p','找不到符合的指令，試試其他關鍵字。'));$('#add-prompt').hidden=!editing}
-$('#search').oninput=renderPrompts;$('#manage').onclick=()=>{editing=!editing;$('#manage').textContent=editing?'結束本機編輯':'本機編輯示範';renderPrompts()};
-function openEditor(index){editIndex=index;const p=prompts[index]||{title:'',category:'',desc:'',body:''};['title','category','desc','body'].forEach(k=>$('#edit-'+k).value=p[k]);$('#editor').showModal()}
-$('#add-prompt').onclick=()=>openEditor(-1);$('#close-editor').onclick=()=>$('#editor').close();$('#editor-form').onsubmit=e=>{e.preventDefault();const p={};['title','category','desc','body'].forEach(k=>p[k]=$('#edit-'+k).value.trim());if(Object.values(p).some(v=>!v))return;editIndex<0?prompts.push(p):prompts[editIndex]=p;save('lk-prompts',prompts);renderPrompts();$('#editor').close();toast('已儲存到本機；尚未同步給同事')};renderPrompts();
+function renderPrompts(){
+  const categories=['全部',...new Set(prompts.map(p=>p.category))];
+  if(!categories.includes(category))category='全部';
+  $('#categories').replaceChildren(...categories.map(c=>{
+    const button=element('button',c,c===category?'active':'');
+    button.onclick=()=>{category=c;renderPrompts()};return button;
+  }));
+  const query=$('#search').value.trim().toLowerCase();let count=0;
+  $('#prompt-list').replaceChildren();
+  for(const prompt of prompts){
+    if((category!=='全部'&&prompt.category!==category)||!`${prompt.title}${prompt.desc}${prompt.body}`.toLowerCase().includes(query))continue;
+    count++;
+    const card=element('article',null,'prompt-card');
+    card.append(element('span',prompt.category,'eyebrow'),element('h3',prompt.title),element('p',prompt.desc));
+    const details=element('details');details.append(element('summary','查看完整指令'),element('pre',prompt.body));card.append(details);
+    const bottom=element('div',null,'card-bottom');bottom.append(element('span','複製後貼到 AI 使用'));
+    const button=element('button','複製指令');button.onclick=()=>copy(prompt.body);bottom.append(button);card.append(bottom);
+    $('#prompt-list').append(card);
+  }
+  $('#result-count').textContent=`共 ${count} 則指令`;
+  if(!count)$('#prompt-list').append(element('p','找不到符合的指令，試試其他關鍵字。'));
+}
+$('#search').oninput=renderPrompts;
+renderPrompts();
 let schedule=read('lk-schedule',{month:'2026-11',people:8,assignments:[],holidays:[],names:[]});$('#month').value=schedule.month;$('#people').value=schedule.people;
 normaliseRules();
 function daysInMonth(){const [y,m]=$('#month').value.split('-').map(Number);return new Date(y,m,0).getDate()}
